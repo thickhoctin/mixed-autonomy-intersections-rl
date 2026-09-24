@@ -138,3 +138,10 @@ launch.json
 .vscode/settings.json
 paths.txt
 *.pth
+.vscode/
+EXP_DIR/
+output.txt
+output_data.csv
+*:Zone.Identifier
+MasterThesis*.pdf
+Master_thesis*.pptx

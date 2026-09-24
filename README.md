@@ -1,8 +1,6 @@
 # Multi-Agent Reinforcement Learning for Mixed-Autonomy Unsignalized Intersections
 
-**Master's Thesis Project — Thanh Tung Nguyen**  
-Technische Hochschule Ingolstadt (THI) · Automated Driving and Vehicle Safety  
-Submitted: May 2026
+**Research & Engineering Project — Thanh Tung Nguyen**
 
 <p align="center">
   <img src="videos/mixed_autonomy_demo_closeup.gif" width="420" alt="Mixed-autonomy unsignalized intersection demo">
@@ -12,7 +10,7 @@ Submitted: May 2026
   <strong>PPO · Multi-Agent RL · Transformer · KNN Observation · SUMO · Mixed Autonomy</strong>
 </p>
 
-This repository contains the implementation, experiments, evaluation scripts, and selected results from my master's thesis on **decentralized multi-agent reinforcement learning for behavioral control in mixed-autonomy, unsignalized intersections**.
+This repository contains the implementation, experiments, evaluation scripts, and selected results from my work on **decentralized multi-agent reinforcement learning for behavioral control in mixed-autonomy, unsignalized intersections**.
 
 The project studies whether reinforcement-learning-controlled autonomous vehicles can coordinate traffic safely and efficiently when the environment is made substantially more realistic through **left/straight/right turning traffic, stochastic Poisson arrivals, mixed human/AV interaction, richer spatial observations, and imperfect V2V communication**.
 
@@ -23,7 +21,7 @@ The project studies whether reinforcement-learning-controlled autonomous vehicle
 
 ## What I Extended
 
-Compared with the original straight-traffic, deterministic setup, my thesis adds:
+Compared with the original straight-traffic, deterministic setup, this project adds:
 
 - **Unrestricted intersection movement** — left, straight, and right turns
 - **Stochastic demand** — Poisson-distributed vehicle arrivals
@@ -124,7 +122,7 @@ The additional acceleration and braking levels give the agents more control auth
 
 ## Reward Engineering
 
-A major part of the thesis was diagnosing unwanted emergent behavior and redesigning the reward function.
+A major part of the project was diagnosing unwanted emergent behavior and redesigning the reward function.
 
 The reward evolved from a simple global throughput signal toward a cooperative structure containing:
 
@@ -307,11 +305,12 @@ evaluation CSV + trajectory data + SUMO visualization
 ├── launch_eval.sh            # evaluation helper
 ├── results/                  # selected experiment configs and outputs
 ├── setup/                    # SUMO setup inherited from upstream
-├── images/                   # plots and thesis figures
+├── images/                   # plots and evaluation figures
 ├── videos/                   # SUMO simulation demonstrations
-├── training_plot.ipynb       # training-result analysis
-├── figures.ipynb             # visualization / plotting
-└── MasterThesis_ThanhTungNguyen_00146349.pdf
+└── notebooks/
+    ├── training_plot.ipynb
+    ├── training_plot_compare_2911.ipynb
+    └── figures.ipynb
 ```
 
 ---
@@ -319,17 +318,6 @@ evaluation CSV + trajectory data + SUMO visualization
 ## Technology Stack
 
 **Python · PyTorch · SUMO · TraCI · PPO · Multi-Agent Reinforcement Learning · Actor-Critic · GAE · Transformers · Multi-Head Attention · KNN Observation · Ray · NumPy · Pandas · Jupyter · Matplotlib**
-
----
-
-## Thesis
-
-**Multi-Agent Reinforcement Learning for Behavioral Control in Mixed-Autonomy Unsignalized Intersections**
-
-Master's degree program: **Automated Driving and Vehicle Safety**  
-Technische Hochschule Ingolstadt
-
-[Read the full master's thesis](MasterThesis_ThanhTungNguyen_00146349.pdf)
 
 ---
 
@@ -345,7 +333,7 @@ A major next step would be to combine learned coordination with stronger safety 
 
 ## Upstream Research and Attribution
 
-This thesis builds upon:
+This project builds upon:
 
 **Zhongxia Yan and Cathy Wu**  
 *Reinforcement Learning for Mixed Autonomy Intersections*  
@@ -354,7 +342,7 @@ IEEE International Intelligent Transportation Systems Conference (ITSC), 2021
 Original implementation:  
 https://github.com/ZhongxiaYan/mixed_autonomy_intersections
 
-My work extends the framework with a modified traffic environment, PPO training and tuning, richer observation representations, KNN-based spatial filtering, Transformer feature extraction, reward redesign, broader evaluation, and V2V communication robustness experiments.
+This project extends the framework with a modified traffic environment, PPO training and tuning, richer observation representations, KNN-based spatial filtering, Transformer feature extraction, reward redesign, broader evaluation, and V2V communication robustness experiments.
 
 ---
 

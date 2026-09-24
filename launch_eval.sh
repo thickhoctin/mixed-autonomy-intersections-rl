@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Final KNN-Transformer thesis experiment.
+# Final KNN-Transformer experiment.
 EXP_DIR="results/fourway_1x1_penetration0.5_turn_adam_ppo_transformer_13.02"
 
 # Optional positional arguments:
