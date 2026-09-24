@@ -5,7 +5,7 @@ Technische Hochschule Ingolstadt (THI) · Automated Driving and Vehicle Safety
 Submitted: May 2026
 
 <p align="center">
-  <img src="videos/2025-11-1800-15-09-ezgif.com-crop_close_look.gif" width="760" alt="Mixed-autonomy unsignalized intersection demo" width="400">
+  <img src="videos/mixed_autonomy_demo_closeup.gif" width="420" alt="Mixed-autonomy unsignalized intersection demo">
 </p>
 
 <p align="center">
@@ -43,7 +43,7 @@ The goal was not only to maximize throughput, but to study the difficult **safet
 ## Simulation Demo
 
 <p align="center">
-  <img src="videos/2025-11-1800-15-09-ezgif.com-crop.gif" width="820" alt="Four-way mixed-autonomy intersection simulation" width="400">
+  <img src="videos/mixed_autonomy_demo.gif" width="520" alt="Four-way mixed-autonomy intersection simulation">
 </p>
 
 The extended environment is a four-way unsignalized intersection with mixed autonomous and human-driven traffic. AVs are controlled by a shared reinforcement-learning policy, while human-driven vehicles follow SUMO microscopic traffic models.
@@ -226,15 +226,17 @@ For example, the final KNN-Transformer experiment is stored under:
 results/fourway_1x1_penetration0.5_turn_adam_ppo_transformer_13.02/
 ```
 
-The helper script:
+The helper script supports both a fresh run and resuming from a local checkpoint:
 
 ```bash
+# Start from scratch (load_step=0)
 bash launch_train.sh
+
+# Resume from checkpoint 300
+bash launch_train.sh 300
 ```
 
-contains the configuration I used for continuing the thesis experiment. **At the moment it is configured with `load_step=300`, so it resumes from an existing checkpoint rather than starting from scratch.**
-
-Because large `*.pth` checkpoints are intentionally excluded from this Git repository, resuming training requires restoring the corresponding checkpoint locally first.
+The script uses the final KNN-Transformer experiment configuration by default. Large `*.pth` checkpoints are intentionally excluded from Git, so resume mode requires the requested checkpoint to exist locally first.
 
 ---
 
@@ -246,20 +248,19 @@ The evaluation helper can be run with:
 bash launch_eval.sh
 ```
 
-`launch_eval.sh` exposes the most important evaluation settings near the top of the file:
+`launch_eval.sh` can be run with its defaults or with a checkpoint and traffic-flow rates:
 
 ```bash
-EXP_DIR=...
-CKPT=...
-FR_H=700
-FR_V=700
-N_ROWS=1
-N_COLS=1
+# Defaults: checkpoint 260, 700 veh/h horizontal, 700 veh/h vertical
+bash launch_eval.sh
+
+# Example: checkpoint 350 at 700 × 700 veh/h
+bash launch_eval.sh 350 700 700
 ```
 
-It then calls `intersection.py` with the configured checkpoint, traffic-flow rates, rollout settings, result output, vehicle-trajectory logging, and optional SUMO rendering.
+The script builds the result filenames automatically and writes evaluation metrics and vehicle-trajectory data into the selected experiment directory. SUMO rendering can be controlled with the `RENDER` environment variable.
 
-> **Checkpoint note:** trained `*.pth` files are intentionally not committed to Git. Set `CKPT` to a checkpoint available in your local experiment directory before running evaluation.
+> **Checkpoint note:** trained `*.pth` files are intentionally not committed to Git. The selected checkpoint must exist locally before evaluation.
 
 ---
 
@@ -302,7 +303,7 @@ evaluation CSV + trajectory data + SUMO visualization
 ├── auto_eval.py              # automated model evaluation
 ├── auto_eval_baseline.py     # baseline evaluation
 ├── check_model.py            # model inspection utilities
-├── launch_train.sh           # thesis training / resume helper
+├── launch_train.sh           # fresh-training / resume helper
 ├── launch_eval.sh            # evaluation helper
 ├── results/                  # selected experiment configs and outputs
 ├── setup/                    # SUMO setup inherited from upstream
