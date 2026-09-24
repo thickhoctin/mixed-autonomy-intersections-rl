@@ -5,7 +5,7 @@ Technische Hochschule Ingolstadt (THI) · Automated Driving and Vehicle Safety
 Submitted: May 2026
 
 <p align="center">
-  <img src="videos/2025-11-1800-15-09-ezgif.com-crop_close_look.gif" width="760" alt="Mixed-autonomy unsignalized intersection demo">
+  <img src="videos/2025-11-1800-15-09-ezgif.com-crop_close_look.gif" width="760" alt="Mixed-autonomy unsignalized intersection demo" width="400">
 </p>
 
 <p align="center">
@@ -43,7 +43,7 @@ The goal was not only to maximize throughput, but to study the difficult **safet
 ## Simulation Demo
 
 <p align="center">
-  <img src="videos/2025-11-1800-15-09-ezgif.com-crop.gif" width="820" alt="Four-way mixed-autonomy intersection simulation">
+  <img src="videos/2025-11-1800-15-09-ezgif.com-crop.gif" width="820" alt="Four-way mixed-autonomy intersection simulation" width="400">
 </p>
 
 The extended environment is a four-way unsignalized intersection with mixed autonomous and human-driven traffic. AVs are controlled by a shared reinforcement-learning policy, while human-driven vehicles follow SUMO microscopic traffic models.
