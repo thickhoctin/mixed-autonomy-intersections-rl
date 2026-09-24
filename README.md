@@ -4,51 +4,57 @@
 Technische Hochschule Ingolstadt (THI) · Automated Driving and Vehicle Safety  
 Submitted: May 2026
 
-This repository contains the implementation, experiments, evaluation scripts, and selected results from my master's thesis on **multi-agent reinforcement learning (MARL) for behavioral control in mixed-autonomy, unsignalized intersections**.
+<p align="center">
+  <img src="videos/2025-11-1800-15-09-ezgif.com-crop_close_look.gif" width="760" alt="Mixed-autonomy unsignalized intersection demo">
+</p>
 
-The project investigates how reinforcement-learning-controlled autonomous vehicles can coordinate traffic flow in a realistic mixed-autonomy setting with **human-driven vehicles, stochastic traffic demand, turning maneuvers, imperfect V2V communication, and safety constraints**.
+<p align="center">
+  <strong>PPO · Multi-Agent RL · Transformer · KNN Observation · SUMO · Mixed Autonomy</strong>
+</p>
 
-> **Research basis:** this work extends the open-source framework from Zhongxia Yan and Cathy Wu, *Reinforcement Learning for Mixed Autonomy Intersections* (IEEE ITSC 2021).  
-> Original repository: https://github.com/ZhongxiaYan/mixed_autonomy_intersections
+This repository contains the implementation, experiments, evaluation scripts, and selected results from my master's thesis on **decentralized multi-agent reinforcement learning for behavioral control in mixed-autonomy, unsignalized intersections**.
 
----
+The project studies whether reinforcement-learning-controlled autonomous vehicles can coordinate traffic safely and efficiently when the environment is made substantially more realistic through **left/straight/right turning traffic, stochastic Poisson arrivals, mixed human/AV interaction, richer spatial observations, and imperfect V2V communication**.
 
-## Research Question
-
-Can decentralized reinforcement-learning agents coordinate a mixed-autonomy intersection safely and efficiently when the environment is made substantially more realistic than the original straight-traffic, deterministic setting?
-
-The thesis focuses on four major extensions:
-
-- **Free vehicle movement** — left, straight, and right turns instead of through-traffic only
-- **Stochastic traffic demand** — Poisson-distributed vehicle arrivals instead of deterministic inflow
-- **Richer spatial reasoning** — comparison of MLP and Transformer feature extractors
-- **Communication robustness** — evaluation under simulated V2V packet loss
-
-The system is trained and evaluated at **50% autonomous-vehicle penetration** in a four-way unsignalized intersection.
+> **Research basis:** this project extends the open-source framework from Zhongxia Yan and Cathy Wu, *Reinforcement Learning for Mixed Autonomy Intersections* (IEEE ITSC 2021).  
+> Upstream repository: https://github.com/ZhongxiaYan/mixed_autonomy_intersections
 
 ---
 
-## My Contributions
+## What I Extended
 
-I extended the original research codebase and built a larger experimental pipeline around it.
+Compared with the original straight-traffic, deterministic setup, my thesis adds:
 
-### 1. More realistic SUMO traffic environment
+- **Unrestricted intersection movement** — left, straight, and right turns
+- **Stochastic demand** — Poisson-distributed vehicle arrivals
+- **50% autonomous-vehicle penetration** in mixed traffic
+- **PPO Actor-Critic training** with GAE and shared policy parameters
+- **MLP vs. Transformer feature extraction**
+- **Platoon vs. K-Nearest-Neighbor observation spaces**
+- **5-action longitudinal control**
+- **Cooperative and safety-aware reward engineering**
+- **Automated evaluation across varying traffic flows**
+- **V2V packet-loss robustness testing**
 
-I modified the intersection scenario to support:
+The goal was not only to maximize throughput, but to study the difficult **safety-throughput trade-off** that emerges when autonomous agents coordinate with human-driven vehicles.
 
-- left, straight, and right-turn maneuvers
-- 12 valid route combinations through the four-way junction
-- Poisson-distributed vehicle generation
-- 50% AV / 50% human-driven mixed traffic
-- IDM-based human drivers
-- stochastic traffic interactions in SUMO
-- route-intention encoding for surrounding vehicles
+---
 
-The reinforcement-learning agents control the **longitudinal acceleration** of AVs while human-driven vehicles remain governed by SUMO traffic models.
+## Simulation Demo
 
-### 2. PPO-based multi-agent reinforcement learning
+<p align="center">
+  <img src="videos/2025-11-1800-15-09-ezgif.com-crop.gif" width="820" alt="Four-way mixed-autonomy intersection simulation">
+</p>
 
-The project progresses from a basic Policy Gradient / REINFORCE implementation toward a more stable **Proximal Policy Optimization (PPO)** pipeline using:
+The extended environment is a four-way unsignalized intersection with mixed autonomous and human-driven traffic. AVs are controlled by a shared reinforcement-learning policy, while human-driven vehicles follow SUMO microscopic traffic models.
+
+---
+
+## Core Methodology
+
+### PPO-based multi-agent control
+
+The project progresses from a Policy Gradient / REINFORCE baseline to **Proximal Policy Optimization (PPO)** using:
 
 - clipped PPO objective
 - Actor-Critic architecture
@@ -56,81 +62,53 @@ The project progresses from a basic Policy Gradient / REINFORCE implementation t
 - Adam optimization
 - entropy regularization
 - value-function learning
-- mini-batch training
-- multi-rollout data collection
-- shared policy parameters across autonomous vehicles
+- mini-batch optimization
+- multiple simulation rollouts per update
+- parameter sharing across autonomous vehicles
 
-I iteratively tuned learning rate, clipping, entropy, rollout count, network size, optimization epochs, and reward coefficients based on observed training behavior.
+The AVs are decentralized at execution time: each controlled vehicle acts from its local observation while all AVs share the same learned policy.
 
-### 3. MLP vs. Transformer feature extraction
+### MLP vs. Embedded Transformer
 
-Two policy backbones were evaluated.
+I evaluated two feature-extraction approaches.
 
-#### MLP baseline
+**MLP baseline:** a fixed-size traffic observation is flattened and processed by a feed-forward network before reaching the Actor and Critic heads.
 
-A conventional Multi-Layer Perceptron processes flattened traffic observations before feeding shared features into Actor and Critic heads.
-
-#### Embedded Transformer
-
-I implemented a Transformer-based feature extractor to model interactions between the ego AV and surrounding vehicles using:
-
-- learnable vehicle embeddings
-- Leaky ReLU activation
-- multi-head self-attention
-- stacked Transformer encoder layers
-- shared latent representation for Actor and Critic
-- ego-centric contextual feature extraction
-
-The goal was to allow the policy to learn **which neighboring vehicles matter most** rather than treating every input slot equally.
+**Embedded Transformer:** each observed vehicle is first mapped into a learned embedding and processed with multi-head self-attention. This allows the policy to learn which surrounding vehicles are most relevant to the ego AV rather than assigning equal importance to every observation slot.
 
 ---
 
 ## Observation-Space Design
 
-One of the central parts of the thesis was redesigning how the environment is represented to the RL agents.
-
 ### Platoon-based observation
 
-The first approach extends the platoon/chain representation used in the original research. Vehicles are grouped into controllable and uncontrollable traffic chains around the intersection.
+The first representation extends the chain/platoon abstraction from the upstream work. For surrounding traffic, the policy observes features including vehicle speed, distance to the junction, turning intention, and distance to the ego vehicle.
 
-Features include:
-
-- vehicle speed
-- distance to junction
-- turning intention
-- distance to ego vehicle
-
-This representation is compact, but it can miss important crossing vehicles in complex turning scenarios.
+This is compact, but complex turning traffic can introduce spatial blind spots.
 
 ### K-Nearest-Neighbor observation
 
-To reduce those blind spots, I redesigned the observation space around a **K-Nearest-Neighbor (KNN)** formulation.
+I therefore redesigned the state representation using an ego-centric **K-Nearest-Neighbor (KNN)** observation.
 
-For every ego AV, the system:
+At each simulation step, the environment:
 
-1. queries nearby vehicles,
-2. computes spatial distance using vehicle geometry,
-3. filters irrelevant vehicles based on heading and relative motion,
-4. sorts candidates by proximity,
-5. selects the K most relevant neighbors,
-6. normalizes all features,
-7. pads sparse observations to a fixed-size tensor.
+1. gathers nearby vehicles,
+2. computes spatial proximity,
+3. filters vehicles using heading and relative motion,
+4. sorts candidates by distance,
+5. keeps the K most relevant neighbors,
+6. normalizes their features, and
+7. pads sparse scenes to keep a fixed-size input.
 
-Each observed vehicle is represented using a 7-dimensional feature vector containing:
+Each observed vehicle is represented by a compact feature vector containing relative distance, speed, turning intention, heading information, and distance to the junction.
 
-- relative distance
-- speed
-- left / straight / right route intention
-- heading angle
-- distance to the junction
-
-This representation was designed specifically to work with the Transformer's self-attention mechanism.
+This representation was designed to pair naturally with self-attention.
 
 ---
 
 ## Action Space
 
-The original 3-action longitudinal controller was expanded to a 5-action discrete control space:
+The original 3-action controller was extended to five longitudinal acceleration commands:
 
 ```text
 -4.5 m/s²
@@ -140,128 +118,176 @@ The original 3-action longitudinal controller was expanded to a 5-action discret
 +2.6 m/s²
 ```
 
-This gave the agents more control authority for gap acceptance, braking, and acceleration in dense multi-directional traffic.
+The additional acceleration and braking levels give the agents more control authority for gap acceptance and collision avoidance in dense multi-directional traffic.
 
 ---
 
 ## Reward Engineering
 
-A major part of the project involved diagnosing and correcting undesirable learned behavior.
+A major part of the thesis was diagnosing unwanted emergent behavior and redesigning the reward function.
 
-The reward design evolved from a simple global throughput reward toward an individualized cooperative structure containing:
+The reward evolved from a simple global throughput signal toward a cooperative structure containing:
 
-- successful-arrival reward
+- arrival rewards
 - cooperative reward for human-vehicle throughput
-- direct collision penalty
-- spatially distributed indirect collision penalty
+- direct collision penalties
+- spatially distributed indirect collision penalties
 - adaptive collision-penalty growth
-- stagnation penalty
-- speed reward when the forward path is clear
+- stagnation penalties
+- speed rewards when the forward path is clear
 
-During training, I observed two important failure modes:
+Two important failure modes appeared during experimentation:
 
-- **reward hacking** — agents increased throughput by driving too aggressively and accepting collisions
-- **parking behavior** — excessively large collision penalties caused agents to stop moving entirely
+**Reward hacking:** agents could increase throughput by driving too aggressively and accepting collisions.
 
-These experiments showed that safety could not be solved by simply increasing a scalar collision penalty; better state representation and feature extraction were required.
+**Parking behavior:** excessively large collision penalties caused agents to minimize risk by stopping almost completely.
 
----
-
-## Experimental Progression
-
-The project was developed through a sequence of controlled experiments rather than a single training run.
-
-Key stages included:
-
-1. Policy Gradient + RMSProp
-2. Policy Gradient + Adam
-3. PPO + MLP
-4. stochastic Poisson traffic
-5. richer turning-information features
-6. expanded 5-action control space
-7. adaptive / distributed reward shaping
-8. deeper MLP baselines
-9. PPO + Embedded Transformer
-10. Transformer + platoon observation
-11. Transformer + KNN observation
-12. robustness testing with V2V packet loss
-
-The repository contains the associated training, evaluation, plotting, and result-generation code.
+These experiments showed that scalar reward tuning alone could not solve the task; observation quality and feature extraction were equally important.
 
 ---
 
 ## Selected Results
 
-### KNN-Transformer representation improved value-function understanding
+### KNN + Transformer improved state-value estimation
 
-With the KNN + Transformer architecture, the Critic achieved **explained variance as high as ~0.90** during training, compared with much weaker value prediction in earlier MLP experiments.
-
-This was one of the clearest indications that the redesigned observation space and self-attention architecture captured more useful structure from the traffic environment.
+With the KNN-Transformer architecture, the Critic achieved **explained variance as high as ~0.90** during training, substantially stronger than the earlier MLP experiments.
 
 ### Transformer policies reached high throughput
 
-The high-throughput Transformer configurations exceeded **2,200 vehicles/hour** in some evaluations.
+Aggressive Transformer configurations exceeded **2,200 vehicles/hour** in some evaluations. However, the highest-throughput policies also produced unacceptable collision rates, exposing a strong safety-efficiency trade-off.
 
-However, these aggressive policies could also produce unacceptable collision rates. This exposed a strong **throughput-vs-safety trade-off** rather than a deployment-ready solution.
+### MLP policies provided a more conservative balance
 
-### MLP policies were more conservative
+Well-tuned MLP policies achieved approximately **1,700 vehicles/hour with zero or near-zero collisions**, and around **1,800 vehicles/hour with low collision counts** in the evaluated scenarios.
 
-Well-tuned MLP policies provided a more balanced operating point, reaching approximately:
+### Robustness to V2V packet loss
 
-- **~1,700 vehicles/hour with zero or near-zero collisions**
-- **~1,800 vehicles/hour with only low collision counts**
+A high-performing KNN-Transformer policy was stress-tested with simulated packet-loss levels of **5%, 10%, 20%, and 50%**.
 
-### V2V packet-loss robustness
-
-The highest-performing KNN-Transformer model was stress-tested under simulated communication loss:
-
-- 5% packet loss
-- 10% packet loss
-- 20% packet loss
-- 50% packet loss
-
-The policy remained operational under moderate packet loss. At **10–20% loss**, throughput degradation was only a few percent in the evaluated scenarios.
-
-At **50% loss**, performance degraded substantially, as expected, because the agents no longer had enough reliable neighboring-vehicle information.
+The policy remained operational under moderate communication degradation. In the evaluated scenarios, **10–20% packet loss produced only a small throughput degradation**, while 50% loss caused a much larger performance drop.
 
 ---
 
 ## Baselines
 
-The learned policies were compared against traditional traffic-control strategies, including:
+The learned policies were compared against:
 
 - equal-phase traffic signals
-- Max-Pressure control
+- Max-Pressure signal control
 - horizontal-priority rules
 - vertical-priority rules
 
-Evaluation focused primarily on:
-
-- hourly throughput
-- collision rate
-- average traffic speed
-- training stability
-- generalization across traffic-flow configurations
+Evaluation focused on hourly throughput, collision rate, average traffic speed, learning stability, and generalization across different traffic-flow configurations.
 
 ---
 
-## Technology Stack
+## Installation
 
-- **Python**
-- **PyTorch**
-- **SUMO**
-- **TraCI**
-- **Multi-Agent Reinforcement Learning**
-- **Proximal Policy Optimization (PPO)**
-- **Policy Gradient / REINFORCE**
-- **Actor-Critic**
-- **Generalized Advantage Estimation**
-- **Transformers / Multi-Head Attention**
-- **K-Nearest-Neighbor state representation**
-- **Ray / distributed rollout experiments**
-- **NumPy / Pandas**
-- **Jupyter Notebook**
-- **Matplotlib**
+The project is based on the SUMO/TraCI environment used by the upstream Yan & Wu implementation.
+
+### 1. Clone the repository
+
+```bash
+git clone https://github.com/thickhoctin/mixed-autonomy-intersections-rl.git
+cd mixed-autonomy-intersections-rl
+```
+
+### 2. Install Python dependencies
+
+```bash
+python3 -m pip install -r requirements.txt
+```
+
+PyTorch should be installed separately for the target CPU/CUDA environment.
+
+### 3. Install SUMO
+
+Legacy SUMO setup scripts inherited from the upstream project are available under `setup/`, including Ubuntu and macOS setup helpers.
+
+For the original SUMO installation details and compatibility notes, see the upstream repository:
+
+https://github.com/ZhongxiaYan/mixed_autonomy_intersections
+
+---
+
+## Training
+
+Each experiment directory contains its own `config.yaml`.
+
+A fresh training run follows the general form:
+
+```bash
+python3 intersection.py <EXPERIMENT_DIRECTORY>
+```
+
+For example, the final KNN-Transformer experiment is stored under:
+
+```text
+results/fourway_1x1_penetration0.5_turn_adam_ppo_transformer_13.02/
+```
+
+The helper script:
+
+```bash
+bash launch_train.sh
+```
+
+contains the configuration I used for continuing the thesis experiment. **At the moment it is configured with `load_step=300`, so it resumes from an existing checkpoint rather than starting from scratch.**
+
+Because large `*.pth` checkpoints are intentionally excluded from this Git repository, resuming training requires restoring the corresponding checkpoint locally first.
+
+---
+
+## Evaluation
+
+The evaluation helper can be run with:
+
+```bash
+bash launch_eval.sh
+```
+
+`launch_eval.sh` exposes the most important evaluation settings near the top of the file:
+
+```bash
+EXP_DIR=...
+CKPT=...
+FR_H=700
+FR_V=700
+N_ROWS=1
+N_COLS=1
+```
+
+It then calls `intersection.py` with the configured checkpoint, traffic-flow rates, rollout settings, result output, vehicle-trajectory logging, and optional SUMO rendering.
+
+> **Checkpoint note:** trained `*.pth` files are intentionally not committed to Git. Set `CKPT` to a checkpoint available in your local experiment directory before running evaluation.
+
+---
+
+## Experiment Outputs
+
+Selected experiment artifacts are kept under `results/`, including:
+
+- experiment configuration files
+- training metrics
+- evaluation CSV files
+- SUMO network files
+- selected plots and analysis outputs
+
+Intermediate model checkpoints were removed from Git history to keep the repository lightweight.
+
+For larger-scale reproduction, the recommended workflow is:
+
+```text
+config.yaml
+    ↓
+intersection.py / launch_train.sh
+    ↓
+local .pth checkpoints
+    ↓
+launch_eval.sh
+    ↓
+evaluation CSV + trajectory data + SUMO visualization
+```
 
 ---
 
@@ -269,24 +295,29 @@ Evaluation focused primarily on:
 
 ```text
 .
-├── intersection.py           # training / evaluation entry point
-├── env.py                    # mixed-autonomy traffic environment
-├── exp.py                    # experiment configuration and training logic
-├── model_parameters.py       # neural network / model components
-├── auto_eval.py              # automated evaluation
+├── intersection.py           # main training / evaluation entry point
+├── env.py                    # mixed-autonomy environment and observations
+├── exp.py                    # experiment and training logic
+├── model_parameters.py       # neural-network components
+├── auto_eval.py              # automated model evaluation
 ├── auto_eval_baseline.py     # baseline evaluation
 ├── check_model.py            # model inspection utilities
-├── launch_train.sh           # training launcher
-├── launch_eval.sh            # evaluation launcher
-├── results/                  # selected experiment outputs and configs
-├── images/                   # evaluation and thesis figures
-├── videos/                   # SUMO visualizations
-├── training_plot.ipynb       # training/result analysis
-├── figures.ipynb             # result visualization
+├── launch_train.sh           # thesis training / resume helper
+├── launch_eval.sh            # evaluation helper
+├── results/                  # selected experiment configs and outputs
+├── setup/                    # SUMO setup inherited from upstream
+├── images/                   # plots and thesis figures
+├── videos/                   # SUMO simulation demonstrations
+├── training_plot.ipynb       # training-result analysis
+├── figures.ipynb             # visualization / plotting
 └── MasterThesis_ThanhTungNguyen_00146349.pdf
 ```
 
-Large PyTorch checkpoint files (`*.pth`) are intentionally excluded from this repository.
+---
+
+## Technology Stack
+
+**Python · PyTorch · SUMO · TraCI · PPO · Multi-Agent Reinforcement Learning · Actor-Critic · GAE · Transformers · Multi-Head Attention · KNN Observation · Ray · NumPy · Pandas · Jupyter · Matplotlib**
 
 ---
 
@@ -297,57 +328,32 @@ Large PyTorch checkpoint files (`*.pth`) are intentionally excluded from this re
 Master's degree program: **Automated Driving and Vehicle Safety**  
 Technische Hochschule Ingolstadt
 
-The full thesis is included in this repository:
-
-`MasterThesis_ThanhTungNguyen_00146349.pdf`
+[Read the full master's thesis](MasterThesis_ThanhTungNguyen_00146349.pdf)
 
 ---
 
 ## Limitations
 
-This project is simulation-based research and is **not a production or safety-certified autonomous-driving controller**.
+This repository presents **simulation-based research**, not a production or safety-certified autonomous-driving controller.
 
-Important limitations include:
+Important limitations include SUMO/IDM-based human behavior, a limited intersection topology, discrete longitudinal actions, simplified packet-loss simulation, no real-vehicle validation, and an unresolved safety-throughput trade-off in the most aggressive Transformer policies.
 
-- human behavior modeled through SUMO / IDM
-- limited intersection topology
-- discrete longitudinal control
-- simplified V2V packet-loss modeling
-- no real-vehicle validation
-- unresolved safety-throughput trade-offs in the most aggressive Transformer policies
-- sim-to-real distribution shift
-
-The results should therefore be interpreted as research into RL architecture, observation design, robustness, and traffic coordination rather than as a deployable intersection-control system.
+A major next step would be to combine learned coordination with stronger safety mechanisms such as constrained RL, explicit safety layers, temporal/graph representations, richer communication models, and hardware-in-the-loop or real-world validation.
 
 ---
 
-## Future Work
+## Upstream Research and Attribution
 
-The thesis identifies several promising directions:
-
-- explicit safety layers or constrained RL
-- richer temporal representations
-- graph-based or spatio-temporal attention
-- curriculum learning
-- larger road-network topologies
-- more realistic human-driver behavior
-- communication latency and correlated packet-loss models
-- real-world or hardware-in-the-loop validation
-
----
-
-## Acknowledgment of Original Research
-
-This project builds upon the framework introduced by:
+This thesis builds upon:
 
 **Zhongxia Yan and Cathy Wu**  
 *Reinforcement Learning for Mixed Autonomy Intersections*  
 IEEE International Intelligent Transportation Systems Conference (ITSC), 2021
 
-Original repository:  
+Original implementation:  
 https://github.com/ZhongxiaYan/mixed_autonomy_intersections
 
-My thesis extends that framework with a substantially modified traffic environment, training pipeline, observation representations, reward design, neural architectures, evaluation methodology, and robustness experiments.
+My work extends the framework with a modified traffic environment, PPO training and tuning, richer observation representations, KNN-based spatial filtering, Transformer feature extraction, reward redesign, broader evaluation, and V2V communication robustness experiments.
 
 ---
 
@@ -355,12 +361,4 @@ My thesis extends that framework with a substantially modified traffic environme
 
 **Thanh Tung Nguyen**
 
-Focus areas:
-
-- Reinforcement Learning
-- Autonomous Driving
-- Robotics
-- Machine Learning
-- Intelligent Transportation Systems
-- Python / PyTorch
-
+Research / engineering interests: **Reinforcement Learning · Autonomous Driving · Robotics · Machine Learning · Intelligent Transportation Systems**
