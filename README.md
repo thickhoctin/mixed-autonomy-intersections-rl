@@ -1,204 +1,366 @@
-# Mixed Autonomy Intersections
-This repo contains the code, model checkpoints, and video results for the ITSC 2021 paper *Reinforcement Learning for Mixed Autonomy Intersections* on [arXiv](https://arxiv.org/abs/2111.04686) and [IEEE](https://ieeexplore.ieee.org/abstract/document/9565000
-).
+# Multi-Agent Reinforcement Learning for Mixed-Autonomy Unsignalized Intersections
 
-<img src="videos/fourway_1x1_penetration0.5.gif" alt="" width="400"/>
-<img src="videos/twoway_3x3_penetration0.333.gif" alt="" width="400"/>
+**Master's Thesis Project — Thanh Tung Nguyen**  
+Technische Hochschule Ingolstadt (THI) · Automated Driving and Vehicle Safety  
+Submitted: May 2026
 
-If you'd like to cite this work, please use
+This repository contains the implementation, experiments, evaluation scripts, and selected results from my master's thesis on **multi-agent reinforcement learning (MARL) for behavioral control in mixed-autonomy, unsignalized intersections**.
 
+The project investigates how reinforcement-learning-controlled autonomous vehicles can coordinate traffic flow in a realistic mixed-autonomy setting with **human-driven vehicles, stochastic traffic demand, turning maneuvers, imperfect V2V communication, and safety constraints**.
+
+> **Research basis:** this work extends the open-source framework from Zhongxia Yan and Cathy Wu, *Reinforcement Learning for Mixed Autonomy Intersections* (IEEE ITSC 2021).  
+> Original repository: https://github.com/ZhongxiaYan/mixed_autonomy_intersections
+
+---
+
+## Research Question
+
+Can decentralized reinforcement-learning agents coordinate a mixed-autonomy intersection safely and efficiently when the environment is made substantially more realistic than the original straight-traffic, deterministic setting?
+
+The thesis focuses on four major extensions:
+
+- **Free vehicle movement** — left, straight, and right turns instead of through-traffic only
+- **Stochastic traffic demand** — Poisson-distributed vehicle arrivals instead of deterministic inflow
+- **Richer spatial reasoning** — comparison of MLP and Transformer feature extractors
+- **Communication robustness** — evaluation under simulated V2V packet loss
+
+The system is trained and evaluated at **50% autonomous-vehicle penetration** in a four-way unsignalized intersection.
+
+---
+
+## My Contributions
+
+I extended the original research codebase and built a larger experimental pipeline around it.
+
+### 1. More realistic SUMO traffic environment
+
+I modified the intersection scenario to support:
+
+- left, straight, and right-turn maneuvers
+- 12 valid route combinations through the four-way junction
+- Poisson-distributed vehicle generation
+- 50% AV / 50% human-driven mixed traffic
+- IDM-based human drivers
+- stochastic traffic interactions in SUMO
+- route-intention encoding for surrounding vehicles
+
+The reinforcement-learning agents control the **longitudinal acceleration** of AVs while human-driven vehicles remain governed by SUMO traffic models.
+
+### 2. PPO-based multi-agent reinforcement learning
+
+The project progresses from a basic Policy Gradient / REINFORCE implementation toward a more stable **Proximal Policy Optimization (PPO)** pipeline using:
+
+- clipped PPO objective
+- Actor-Critic architecture
+- Generalized Advantage Estimation (GAE)
+- Adam optimization
+- entropy regularization
+- value-function learning
+- mini-batch training
+- multi-rollout data collection
+- shared policy parameters across autonomous vehicles
+
+I iteratively tuned learning rate, clipping, entropy, rollout count, network size, optimization epochs, and reward coefficients based on observed training behavior.
+
+### 3. MLP vs. Transformer feature extraction
+
+Two policy backbones were evaluated.
+
+#### MLP baseline
+
+A conventional Multi-Layer Perceptron processes flattened traffic observations before feeding shared features into Actor and Critic heads.
+
+#### Embedded Transformer
+
+I implemented a Transformer-based feature extractor to model interactions between the ego AV and surrounding vehicles using:
+
+- learnable vehicle embeddings
+- Leaky ReLU activation
+- multi-head self-attention
+- stacked Transformer encoder layers
+- shared latent representation for Actor and Critic
+- ego-centric contextual feature extraction
+
+The goal was to allow the policy to learn **which neighboring vehicles matter most** rather than treating every input slot equally.
+
+---
+
+## Observation-Space Design
+
+One of the central parts of the thesis was redesigning how the environment is represented to the RL agents.
+
+### Platoon-based observation
+
+The first approach extends the platoon/chain representation used in the original research. Vehicles are grouped into controllable and uncontrollable traffic chains around the intersection.
+
+Features include:
+
+- vehicle speed
+- distance to junction
+- turning intention
+- distance to ego vehicle
+
+This representation is compact, but it can miss important crossing vehicles in complex turning scenarios.
+
+### K-Nearest-Neighbor observation
+
+To reduce those blind spots, I redesigned the observation space around a **K-Nearest-Neighbor (KNN)** formulation.
+
+For every ego AV, the system:
+
+1. queries nearby vehicles,
+2. computes spatial distance using vehicle geometry,
+3. filters irrelevant vehicles based on heading and relative motion,
+4. sorts candidates by proximity,
+5. selects the K most relevant neighbors,
+6. normalizes all features,
+7. pads sparse observations to a fixed-size tensor.
+
+Each observed vehicle is represented using a 7-dimensional feature vector containing:
+
+- relative distance
+- speed
+- left / straight / right route intention
+- heading angle
+- distance to the junction
+
+This representation was designed specifically to work with the Transformer's self-attention mechanism.
+
+---
+
+## Action Space
+
+The original 3-action longitudinal controller was expanded to a 5-action discrete control space:
+
+```text
+-4.5 m/s²
+-3.5 m/s²
+ 0.0 m/s²
++1.5 m/s²
++2.6 m/s²
 ```
-@inproceedings{yan2021reinforcement,
-  title={Reinforcement Learning for Mixed Autonomy Intersections},
-  author={Yan, Zhongxia and Wu, Cathy},
-  booktitle={2021 IEEE International Intelligent Transportation Systems Conference (ITSC)},
-  pages={2089--2094},
-  year={2021},
-  organization={IEEE}
-}
-```
 
-## Installation
-Installation instructions are provided for MacOS and Ubuntu 14.04, 16.04, and 18.04. For microscopic traffic simulations, we use the SUMO simulator with version 1.1.0; the same code may require adjustments on other SUMO versions. We require Python 3.8+.
-1. Run `bash setup/setup_sumo_<os_version>.sh` corresponding to your OS version to set up SUMO and add `~/sumo_binaries/bin` to your `SUMO_HOME` and `PATH` environment variables. Try running `sumo` and `sumo-gui` (if you'd like to use GUI). Note that GUI probably does not work on servers and may only work on local computers. For Mac installation issues, please refer to `setup/setup_issues_osx.md`. **Update**: due to MacOS `brew` updates, it could be very difficult to install the correct versions of packages for SUMO 1.1.0 on MacOS, so Ubuntu is recommended; for MacOS, you may consider installing `gdal` with `conda install -c conda-forge gdal=2.4.2` and download the `ffmpeg=4.4.1` library files (within the `tar.bz2`) from [conda-forge](https://anaconda.org/conda-forge/ffmpeg/files?version=4.4.1) directly instead of trying to use `brew`.
-2. Note: the previous SUMO installation actually installs a SUMO version which does not support IDM with Gaussian noise. If you'd like to use Gaussian noise (which is what we use in the paper but does not significantly affect results), you can build the forked version of SUMO 1.1.0 at https://github.com/ZhongxiaYan/sumo.
-3. If needed, follow instructions [here](https://docs.conda.io/projects/conda/en/latest/user-guide/install/) to install Miniconda, likely `wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh` followed by `bash Miniconda3-latest-Linux-x86_64.sh`.
-4. If desired, create and activate a new conda environment following these [instructions](https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html#creating-an-environment-with-commands).
-5. If needed, install PyTorch (1.7+) from [pytorch.org](pytorch.org).
-6. If needed, install missing Python dependencies `pip install -r requirements.txt`.
+This gave the agents more control authority for gap acceptance, braking, and acceleration in dense multi-directional traffic.
 
-## Training
-To train a model, create an empty experiment directory `EXP_DIR` anywhere, then create a file called `$EXP_DIR/config.yaml` with the desired training hyperparameters. The training experiment directories corresponding to figures in the paper can be found in the `results` directory (ignore the subdirectories with "baseline" in the name), e.g. `results/twoway_2x1_penetration0.333`.
+---
 
-The hyperparameter names are mostly self-explanatory. If not, please refer to the code for clarification.
+## Reward Engineering
 
-Note that the `n_workers` argument specifies the number of CPUs to run the code on (we run training on a server with 40 CPUs). Make sure you don't use more CPUs than you have.
+A major part of the project involved diagnosing and correcting undesirable learned behavior.
 
-```
-# Example training hyperparameters (also see $EXP_DIR/config.yaml)
-EXP_DIR=results/twoway_2x1_penetration0.333
+The reward design evolved from a simple global throughput reward toward an individualized cooperative structure containing:
 
-python intersection.py $EXP_DIR
-```
-### Trained Models
-All of our trained models used in the paper can be found in `results`, excluding the subdirectories with "baselines" in the name. The naming convention is intuitive, for example `penetration0.5` indicates 50% AV penetration.
+- successful-arrival reward
+- cooperative reward for human-vehicle throughput
+- direct collision penalty
+- spatially distributed indirect collision penalty
+- adaptive collision-penalty growth
+- stagnation penalty
+- speed reward when the forward path is clear
 
-### Finetuning
-To finetune from a previous trained checkpoint (possibly from a different experiment with the same neural network architecture), place the desired model weights in $EXP_DIR before running the training command. For example, if we want to finetune `results/fourway_1x1_penetration0.333/model-200.pth` on 50% penetration in a new `EXP_DIR=results/fourway_1x1_penetration0.5`, use the following Python code to preserve the network weights while discarding other training states.
-```
-ckpt_path = 'results/fourway_1x1_penetration0.333/models/model-200.pth'
-new_ckpt_path = 'results/fourway_1x1_penetration0.5/models/model-0.pth'
+During training, I observed two important failure modes:
 
-import torch
-model_dict = torch.load(ckpt_path)
-new_model_dict = dict(net=model_dict['net'])
-torch.save(new_model_dict, new_ckpt_path)
-```
-Afterwards, run the training command `python intersection.py $EXP_DIR` to start training from these model weights.
+- **reward hacking** — agents increased throughput by driving too aggressively and accepting collisions
+- **parking behavior** — excessively large collision penalties caused agents to stop moving entirely
 
-We list the finetuned experiments (subdirectories of `results/`) here with the notation `<finetuned> <--- <source> (<ckpt>)`:
-* `twoway_2x1_penetration0.1 <--- twoway_2x1_pretrain_penetration0.5 (200)`
-* `twoway_2x1_penetration0.15 <--- twoway_2x1_pretrain_penetration0.5 (200)`
-* `twoway_2x1_penetration0.333 <--- twoway_2x1_pretrain_penetration0.5 (200)`
-* `twoway_2x1_penetration0.5 <--- twoway_2x1_pretrain_penetration0.5 (200)`
-* `twoway_2x1_penetration1 <--- twoway_2x1_pretrain_penetration0.5_threechains_finetune_penetration1 (195) <--- twoway_2x1_pretrain_penetration0.5_threechains (170)`
-* `fourway_1x1_penetration0.5 <--- fourway_1x1_penetration0.333 (200)`
-All intermediate checkpoints are included in `results/`.
+These experiments showed that safety could not be solved by simply increasing a scalar collision penalty; better state representation and feature extraction were required.
 
-## Evaluation
-To evaluate a trained model at an integer checkpoint `CKPT`, run
-```
-# Example evaluation hyperparameters
-EXP_DIR=results/twoway_2x1_penetration0.333
-CKPT=200
-FR_H=850 # Horizontal flow rate in vehicles/hour
-FR_V=700 # Vertical flow rate
-N_ROWS=3
-N_COLS=3
-RESULT_SAVE_PATH=$EXP_DIR/eval_results/e165_3x3_skip500_flow850x700.csv
+---
 
-python intersection.py $EXP_DIR e=$CKPT n_rows=$N_ROWS n_cols=$N_COLS n_steps=10 n_rollouts_per_step=1 skip_stat_steps=500 flow_rate_h=$FR_H flow_rate_v=$FR_V result_save=$RESULT_SAVE_PATH
-```
-Any nonspecified hyperparameter defaults to the value in `$EXP_DIR/config.yaml`. Other hyperparameters that can be set can be found in the code: any attribute of `c` (see code) can be set from the command line, i.e. to set `c.lr = 0.001` from the command line, run `python intersection.py $EXP_DIR ... lr=0.001`.
+## Experimental Progression
 
-In the paper, for each experiment we evaluated the checkpoint with the best performance during training. These checkpoints are
-* `twoway_2x1_penetration0.1`: 155
-* `twoway_2x1_penetration0.15`: 180
-* `twoway_2x1_penetration0.333`: 165
-* `twoway_2x1_penetration0.5`: 150
-* `twoway_2x1_penetration1`: 160
-* `fourway_1x1_penetration0.333`: 190
-* `fourway_1x1_penetration0.5`: 170
-Note that we evaluated `twoway_2x1_penetration0.333` and `twoway_2x1_penetration0.5` on both a 2x1 grid of intersections and a 3x3 grid of intersections (see their `eval_results/` subdirectories).
+The project was developed through a sequence of controlled experiments rather than a single training run.
+
+Key stages included:
+
+1. Policy Gradient + RMSProp
+2. Policy Gradient + Adam
+3. PPO + MLP
+4. stochastic Poisson traffic
+5. richer turning-information features
+6. expanded 5-action control space
+7. adaptive / distributed reward shaping
+8. deeper MLP baselines
+9. PPO + Embedded Transformer
+10. Transformer + platoon observation
+11. Transformer + KNN observation
+12. robustness testing with V2V packet loss
+
+The repository contains the associated training, evaluation, plotting, and result-generation code.
+
+---
+
+## Selected Results
+
+### KNN-Transformer representation improved value-function understanding
+
+With the KNN + Transformer architecture, the Critic achieved **explained variance as high as ~0.90** during training, compared with much weaker value prediction in earlier MLP experiments.
+
+This was one of the clearest indications that the redesigned observation space and self-attention architecture captured more useful structure from the traffic environment.
+
+### Transformer policies reached high throughput
+
+The high-throughput Transformer configurations exceeded **2,200 vehicles/hour** in some evaluations.
+
+However, these aggressive policies could also produce unacceptable collision rates. This exposed a strong **throughput-vs-safety trade-off** rather than a deployment-ready solution.
+
+### MLP policies were more conservative
+
+Well-tuned MLP policies provided a more balanced operating point, reaching approximately:
+
+- **~1,700 vehicles/hour with zero or near-zero collisions**
+- **~1,800 vehicles/hour with only low collision counts**
+
+### V2V packet-loss robustness
+
+The highest-performing KNN-Transformer model was stress-tested under simulated communication loss:
+
+- 5% packet loss
+- 10% packet loss
+- 20% packet loss
+- 50% packet loss
+
+The policy remained operational under moderate packet loss. At **10–20% loss**, throughput degradation was only a few percent in the evaluated scenarios.
+
+At **50% loss**, performance degraded substantially, as expected, because the agents no longer had enough reliable neighboring-vehicle information.
+
+---
 
 ## Baselines
-To run the priority and traffic signal baseline methods which do not require training, create an empty directory `BASE_DIR` and a `$BASE_DIR/config.yaml` with hyperparameters pertaining to all the baseline runs in that directory. Refer to `results/{twoway_2x1_baselines,twoway_3x3_baselines,fourway_1x1_baselines}/config.yaml` as examples. The commands below are similar to previous commands.
 
+The learned policies were compared against traditional traffic-control strategies, including:
+
+- equal-phase traffic signals
+- Max-Pressure control
+- horizontal-priority rules
+- vertical-priority rules
+
+Evaluation focused primarily on:
+
+- hourly throughput
+- collision rate
+- average traffic speed
+- training stability
+- generalization across traffic-flow configurations
+
+---
+
+## Technology Stack
+
+- **Python**
+- **PyTorch**
+- **SUMO**
+- **TraCI**
+- **Multi-Agent Reinforcement Learning**
+- **Proximal Policy Optimization (PPO)**
+- **Policy Gradient / REINFORCE**
+- **Actor-Critic**
+- **Generalized Advantage Estimation**
+- **Transformers / Multi-Head Attention**
+- **K-Nearest-Neighbor state representation**
+- **Ray / distributed rollout experiments**
+- **NumPy / Pandas**
+- **Jupyter Notebook**
+- **Matplotlib**
+
+---
+
+## Repository Structure
+
+```text
+.
+├── intersection.py           # training / evaluation entry point
+├── env.py                    # mixed-autonomy traffic environment
+├── exp.py                    # experiment configuration and training logic
+├── model_parameters.py       # neural network / model components
+├── auto_eval.py              # automated evaluation
+├── auto_eval_baseline.py     # baseline evaluation
+├── check_model.py            # model inspection utilities
+├── launch_train.sh           # training launcher
+├── launch_eval.sh            # evaluation launcher
+├── results/                  # selected experiment outputs and configs
+├── images/                   # evaluation and thesis figures
+├── videos/                   # SUMO visualizations
+├── training_plot.ipynb       # training/result analysis
+├── figures.ipynb             # result visualization
+└── MasterThesis_ThanhTungNguyen_00146349.pdf
 ```
-# Example baseline hyperparameters
-BASE_DIR=results/twoway_2x1_baselines
-FR_H=850
-FR_V=700
 
-# Priority (Horizontal)
-python intersection.py $BASE_DIR e=0 n_steps=3 n_rollouts_per_step=1 skip_stat_steps=500 av_frac=0 speed_mode=SPEED_MODE.all_checks priority=horizontal flow_rate_h=$FR_H flow_rate_v=$FR_V result_save=$BASE_DIR/eval_results/skip500_hpriority_flow${FR_H}x${FR_V}.csv
+Large PyTorch checkpoint files (`*.pth`) are intentionally excluded from this repository.
 
-# Priority (Vertical)
-python intersection.py $BASE_DIR e=0 n_steps=3 n_rollouts_per_step=1 skip_stat_steps=500 av_frac=0 speed_mode=SPEED_MODE.all_checks priority=vertical flow_rate_h=$FR_H flow_rate_v=$FR_V result_save=$BASE_DIR/eval_results/skip500_hpriority_flow${FR_H}x${FR_V}.csv
+---
 
-# Traffic Signal with specified phase times
-PHASE_H=25 # Horizontal traffic signal phase length in seconds
-PHASE_V=25 # Vertical traffic signal phase length in seconds
-python intersection.py $BASE_DIR e=0 n_steps=3 n_rollouts_per_step=1 skip_stat_steps=500 av_frac=0 "'tl=($PHASE_H,$PHASE_V)'" yellow=0 flow_rate_h=$FR_H flow_rate_v=$FR_V result_save=$BASE_DIR/eval_results/skip500_signalbest_yellow0_flow${FR_H}x${FR_V}.csv
+## Thesis
 
-# Traffic Signal with MaxPressure
-MP_T_MIN=12 # Units are in seconds
-python intersection.py $BASE_DIR e=0 n_steps=3 n_rollouts_per_step=1 skip_stat_steps=500 av_frac=0 tl=MaxPressure mp_tmin=$MP_T_MIN yellow=0 flow_rate_h=$FR_H flow_rate_v=$FR_V result_save=$BASE_DIR/eval_results/skip500_mpbest_yellow0_flow${FR_H}x${FR_V}.csv
-```
+**Multi-Agent Reinforcement Learning for Behavioral Control in Mixed-Autonomy Unsignalized Intersections**
 
-We list the best hyperparameters that we found for traffic lights and MaxPressure baselines below.
-### Two-way 2x1 Hyperparameters
+Master's degree program: **Automated Driving and Vehicle Safety**  
+Technische Hochschule Ingolstadt
 
-Oracle traffic signal phase table:
-|F_H \ F_V| 400      | 550      | 700      | 850      | 1000     |
-|------:|:---------|:---------|:---------|:---------|:---------|
-|  1000 | (25, 10) | (25, 13) | (25, 25) | (27, 27) |          |
-|   850 | (25, 25) | (25, 25) | (25, 25) | (26, 26) | (26, 25) |
-|   700 |          |          | (25, 25) | (25, 25) | (19, 26) |
-|   550 |          |          |          | (25, 25) | (14, 25) |
-|   400 |          |          |          | (25, 25) | (9, 25)  |
+The full thesis is included in this repository:
 
-Equal-phase `τ_equal`: `PHASE_H=25` and `PHASE_V=25`
+`MasterThesis_ThanhTungNguyen_00146349.pdf`
 
-MaxPressure `τ_min`: `MP_T_MIN=4`
+---
 
-### Two-way 3x3 Hyperparameters
-Oracle traffic signal phase table:
-|F_H \ F_V| 400      | 550      | 700      | 850      | 1000     |
-|------:|:---------|:---------|:---------|:---------|:---------|
-|  1000 | (25, 10) | (25, 13) | (19, 19) | (21, 21) | nan      |
-|   850 | (25, 24) | (25, 25) | (25, 25) | (26, 25) | (21, 21) |
-|   700 | nan      | nan      | (25, 25) | (25, 25) | (19, 19) |
-|   550 | nan      | nan      | nan      | (25, 25) | (13, 25) |
-|   400 | nan      | nan      | nan      | (24, 25) | (10, 25) |
+## Limitations
 
-Equal-phase `τ_equal`: `PHASE_H=25` and `PHASE_V=25`
+This project is simulation-based research and is **not a production or safety-certified autonomous-driving controller**.
 
-MaxPressure `τ_min`: `MP_T_MIN=6`
+Important limitations include:
 
-### Four-way 1x1 Hyperparameters
-Oracle traffic signal phase table:
-|F_H \ F_V| 400      | 550      | 700      | 850      | 1000     |
-|------:|:---------|:---------|:---------|:---------|:---------|
-|  1000 | (25, 11) | (25, 14) | (29, 22) | (25, 25) |          |
-|   850 | (25, 25) | (25, 25) | (25, 25) | (28, 28) | (25, 25) |
-|   700 |          |          | (25, 25) | (25, 25) | (22, 29) |
-|   550 |          |          |          | (25, 25) | (14, 25) |
-|   400 |          |          |          | (25, 25) | (11, 25) |
+- human behavior modeled through SUMO / IDM
+- limited intersection topology
+- discrete longitudinal control
+- simplified V2V packet-loss modeling
+- no real-vehicle validation
+- unresolved safety-throughput trade-offs in the most aggressive Transformer policies
+- sim-to-real distribution shift
 
-Equal-phase `τ_equal`: `PHASE_H=25` and `PHASE_V=25`
+The results should therefore be interpreted as research into RL architecture, observation design, robustness, and traffic coordination rather than as a deployable intersection-control system.
 
-MaxPressure `τ_min`: `MP_T_MIN=12`
-## Figures
-### Heatmap Results
-Please refer to `figures.ipynb` for the plotting code.
-### Time-space Diagram
-To save the vehicles states for visualization when evaluating trained models or running baselines, add the `vehicle_info_save` argument. For example:
-```
-# Example evaluation hyperparameters
-EXP_DIR=results/twoway_2x1_penetration0.333
-CKPT=165
-FR_H=1000 # Horizontal flow rate in vehicles/hour
-FR_V=700 # Vertical flow rate
-N_ROWS=2
-N_COLS=1
-VEH_INFO_PATH=$EXP_DIR/veh_info/e165_skip500_flow${FR_H}x${FR_V}.csv
+---
 
-python intersection.py $EXP_DIR e=$CKPT n_rows=$N_ROWS n_cols=$N_COLS n_steps=1 n_rollouts_per_step=1 skip_stat_steps=500 flow_rate_h=$FR_H flow_rate_v=$FR_V vehicle_info_save=$VEH_INFO_PATH
-```
-Please refer to `figures.ipynb` for the plotting code.
+## Future Work
 
-## GUI
-To use SUMO GUI to display the traffic scenario when evaluating a trained model or running baselines, add the `render` argument. For example:
-```
-EXP_DIR=results/twoway_2x1_penetration0.333
-CKPT=165
-FR_H=850 # Horizontal flow rate in vehicles/hour
-FR_V=700 # Vertical flow rate
-N_ROWS=3
-N_COLS=3
+The thesis identifies several promising directions:
 
-python intersection.py $EXP_DIR e=$CKPT n_rows=$N_ROWS n_cols=$N_COLS n_steps=1 n_rollouts_per_step=1 skip_stat_steps=500 flow_rate_h=$FR_H flow_rate_v=$FR_V render
-```
-![fourway_1x1_penetration0.5](videos/twoway_3x3_penetration0.333.gif)
-```
-EXP_DIR=results/fourway_1x1_penetration0.5
-CKPT=170
-FR_H=1000 # Horizontal flow rate in vehicles/hour
-FR_V=700 # Vertical flow rate
-N_ROWS=1
-N_COLS=1
+- explicit safety layers or constrained RL
+- richer temporal representations
+- graph-based or spatio-temporal attention
+- curriculum learning
+- larger road-network topologies
+- more realistic human-driver behavior
+- communication latency and correlated packet-loss models
+- real-world or hardware-in-the-loop validation
 
-python intersection.py $EXP_DIR e=$CKPT n_rows=$N_ROWS n_cols=$N_COLS n_steps=1 n_rollouts_per_step=1 skip_stat_steps=500 flow_rate_h=$FR_H flow_rate_v=$FR_V render
-```
-![fourway_1x1_penetration0.5](videos/fourway_1x1_penetration0.5.gif)
+---
+
+## Acknowledgment of Original Research
+
+This project builds upon the framework introduced by:
+
+**Zhongxia Yan and Cathy Wu**  
+*Reinforcement Learning for Mixed Autonomy Intersections*  
+IEEE International Intelligent Transportation Systems Conference (ITSC), 2021
+
+Original repository:  
+https://github.com/ZhongxiaYan/mixed_autonomy_intersections
+
+My thesis extends that framework with a substantially modified traffic environment, training pipeline, observation representations, reward design, neural architectures, evaluation methodology, and robustness experiments.
+
+---
+
+## Author
+
+**Thanh Tung Nguyen**
+
+Focus areas:
+
+- Reinforcement Learning
+- Autonomous Driving
+- Robotics
+- Machine Learning
+- Intelligent Transportation Systems
+- Python / PyTorch
+
