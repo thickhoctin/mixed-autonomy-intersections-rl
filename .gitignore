@@ -133,3 +133,7 @@ dmypy.json
 .pyre/
 
 launch.json
+
+# Additional ignores for Visual Studio Code
+.vscode/settings.json
+paths.txt
