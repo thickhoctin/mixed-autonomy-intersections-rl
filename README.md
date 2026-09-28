@@ -14,7 +14,7 @@ This repository contains the implementation, experiments, evaluation scripts, an
 
 The project studies whether reinforcement-learning-controlled autonomous vehicles can coordinate traffic safely and efficiently when the environment is made substantially more realistic through **left/straight/right turning traffic, stochastic Poisson arrivals, mixed human/AV interaction, richer spatial observations, and imperfect V2V communication**.
 
-> **Research basis:** this project extends the open-source framework from Zhongxia Yan and Cathy Wu, *Reinforcement Learning for Mixed Autonomy Intersections* (IEEE ITSC 2021).  
+> **Research basis:** this project extends the research implementation from Zhongxia Yan and Cathy Wu, *Reinforcement Learning for Mixed Autonomy Intersections* (IEEE ITSC 2021).  
 > Upstream repository: https://github.com/ZhongxiaYan/mixed_autonomy_intersections
 
 ---
@@ -343,6 +343,14 @@ Original implementation:
 https://github.com/ZhongxiaYan/mixed_autonomy_intersections
 
 This project extends the framework with a modified traffic environment, PPO training and tuning, richer observation representations, KNN-based spatial filtering, Transformer feature extraction, reward redesign, broader evaluation, and V2V communication robustness experiments.
+
+---
+
+## License
+
+This repository is published under the **MIT License**. Zhongxia Yan, author and maintainer of the upstream implementation, confirmed permission to publish this extended implementation under the MIT License.
+
+Upstream attribution and licensing context are documented in [NOTICE.md](NOTICE.md). See [LICENSE](LICENSE) for the full license text.
 
 ---
 
